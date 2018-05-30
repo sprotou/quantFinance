@@ -1,8 +1,10 @@
-setwd('C:/Users/sprot/Documents/GitHub/quantFinance')
-
+setwd('C:/Users/sprot/Documents/GitHub/quantFinance/quantFinance')
+#load packages and datasets------------------
 library(tidyverse)
 library(Quandl)
 library(lubridate)
+library(forecast)
+library(TTR)
 
 opecRaw = Quandl("OPEC/ORB", api_key="G8F8fspfaYVHJzPLQP5e")
 wtiRaw = Quandl("EIA/PET_RWTC_D", api_key="G8F8fspfaYVHJzPLQP5e")
@@ -11,6 +13,8 @@ sp500 = read.csv('spx1995_2018.csv')
 stockPrices = read.csv('prices.csv')
 fundamentals = read.csv('fundamentals.csv')
 
+
+#data manipulation and cleaning---------------
 #?ymd
 
 opec1 = opecRaw %>%
@@ -34,7 +38,7 @@ sp5001 = sp500 %>%
   mutate(Date = mdy(Date),
          sp500Closing = Close)
 
-
+#current data range: April 2008 to May 2018
 
 priceCVX = read.csv('cvx.us.txt')
 priceCVX = priceCVX %>%
@@ -44,4 +48,53 @@ join1 = merge(x = opec1, y = wti1, by = "Date", all.x = TRUE)
 join2 = merge(x = join1, y = energy1, by = "Date", all.y = TRUE)
 join3 = merge(x = join2, y = sp5001, by = "Date", all.x = TRUE)
 join4 = merge(x = join3, y = fundCVX, by = "Date", all.x = TRUE)
-join5 = merge(x = join4, y = priceCVX, by = "Date", all.x = TRUE)
+join5 = merge(x = join4, y = priceCVX, by = "Date", all.x = TRUE) #join5 is my "working" dataset for now
+
+?ma
+
+
+
+
+#data summaries---------------
+glimpse(join5)
+summary(join5)
+
+
+
+#EDA--------------------------
+
+cor(x = join5$opecPrice, y = join5$wtiPrice, use='complete.obs')
+#even though the correlation is extremely high at 0.9716, it is not safe to say we can only use one of the variables.
+#Think of the business context: if OPEC increase supply and price drops as a result, WTI immediately reacts to it. 
+#So there may be a causality here that can be useful for our analysis.
+
+
+ggplot(join5) + geom_point(mapping = aes(x=opecPrice, y = energyClosing)) #energy sector closing price
+ggplot(join5) + geom_point(mapping = aes(x=opecPrice, y = Close.y)) #Close.y is closing price for CVX
+ggplot(join5) + geom_point(mapping = aes(x=wtiPrice, y = energyClosing))
+ggplot(join5) + geom_point(mapping = aes(x=wtiPrice, y = Close.y))
+ 
+ggplot(join5) + geom_point(mapping = aes(x=energyClosing, y = Close.y)) #CVX vs Energy index
+#notice the "islands" formed. Could it be different years have had different ratio of x/y?
+
+#time series----------------
+
+#moving averages
+
+join5 = join5 %>%
+  mutate(movAvg7 = ma(opecPrice, 7),
+         movAvg30 = ma(opecPrice, 30),
+         movAvg100 = ma(opecPrice, 100))
+
+
+ggplot(join5) + geom_line(mapping = aes(x=Date, y = Close.y, colour = "CVX")) +
+  geom_line(mapping = aes(x=Date, y = energyClosing/4, colour = "energyClosing/4")) + #/4 just so that we dont stretch the scales, for visibility
+  geom_line(mapping = aes(x=Date, y = opecPrice, colour = "opecPrice")) +
+  geom_line(mapping = aes(x=Date, y = wtiPrice, colour = "wtiPrice")) +
+  
+# ggplot(join5) +  geom_line(mapping = aes(x=Date, y = opecPrice, colour = "opecPrice")) +
+#   geom_line(mapping = aes(x=Date, y = movAvg7, colour = "movAvg7")) +
+#   geom_line(mapping = aes(x=Date, y = movAvg30, colour = "movAvg30")) +
+#   geom_line(mapping = aes(x=Date, y = movAvg100, colour = "movAvg100"))
+
+#lag hypotheses: how long later does oil price affect the stocks prices?--------------
