@@ -67,7 +67,8 @@ cor(x = join5$opecPrice, y = join5$wtiPrice, use='complete.obs')
 #even though the correlation is extremely high at 0.9716, it is not safe to say we can only use one of the variables.
 #Think of the business context: if OPEC increase supply and price drops as a result, WTI immediately reacts to it. 
 #So there may be a causality here that can be useful for our analysis.
-
+cor(x = join5$opecPrice, y = join5$energyClosing, use='complete.obs') # 0.54
+cor(x = join5$opecPrice, y = join5$Close.y, use='complete.obs')# 0.09 !!!
 
 ggplot(join5) + geom_point(mapping = aes(x=opecPrice, y = energyClosing)) #energy sector closing price
 ggplot(join5) + geom_point(mapping = aes(x=opecPrice, y = Close.y)) #Close.y is closing price for CVX
@@ -78,6 +79,19 @@ ggplot(join5) + geom_point(mapping = aes(x=energyClosing, y = Close.y)) #CVX vs 
 #notice the "islands" formed. Could it be different years have had different ratio of x/y?
 
 #time series----------------
+
+#decomposition (moving average because its probably not seasonal)
+cvxTs = ts(join5$Close.y)
+movAvgCvx7 = rollapply(cvxTs, 7, mean, na.rm = TRUE)
+movAvgCvx30 = rollapply(cvxTs, 30, mean, na.rm = TRUE)
+movAvgCvx100 = rollapply(cvxTs, 100, mean, na.rm = TRUE)
+
+#ggplot(movAvgCvx7) + geom_line(aes)
+plot.ts(movAvgCvx7)
+plot.ts(movAvgCvx30)
+plot.ts(movAvgCvx100)
+
+
 
 #moving averages
 
@@ -92,9 +106,12 @@ ggplot(join5) + geom_line(mapping = aes(x=Date, y = Close.y, colour = "CVX")) +
   geom_line(mapping = aes(x=Date, y = opecPrice, colour = "opecPrice")) +
   geom_line(mapping = aes(x=Date, y = wtiPrice, colour = "wtiPrice")) +
   
+  
+  
 # ggplot(join5) +  geom_line(mapping = aes(x=Date, y = opecPrice, colour = "opecPrice")) +
 #   geom_line(mapping = aes(x=Date, y = movAvg7, colour = "movAvg7")) +
 #   geom_line(mapping = aes(x=Date, y = movAvg30, colour = "movAvg30")) +
 #   geom_line(mapping = aes(x=Date, y = movAvg100, colour = "movAvg100"))
 
 #lag hypotheses: how long later does oil price affect the stocks prices?--------------
+
