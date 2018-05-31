@@ -5,6 +5,7 @@ library(Quandl)
 library(lubridate)
 library(forecast)
 library(TTR)
+library(keras)
 
 opecRaw = Quandl("OPEC/ORB", api_key="G8F8fspfaYVHJzPLQP5e")
 wtiRaw = Quandl("EIA/PET_RWTC_D", api_key="G8F8fspfaYVHJzPLQP5e")
@@ -12,6 +13,7 @@ energySector = read.csv('sp_energy_sector.csv')
 sp500 = read.csv('spx1995_2018.csv')
 stockPrices = read.csv('prices.csv')
 fundamentals = read.csv('fundamentals.csv')
+sonicData = read.csv('sonic_data.csv')
 
 
 #data manipulation and cleaning---------------
@@ -38,6 +40,9 @@ sp5001 = sp500 %>%
   mutate(Date = mdy(Date),
          sp500Closing = Close)
 
+sonic1 = sonicData %>%
+  mutate(Date = mdy(Date))
+
 #current data range: April 2008 to May 2018
 
 priceCVX = read.csv('cvx.us.txt')
@@ -49,6 +54,7 @@ join2 = merge(x = join1, y = energy1, by = "Date", all.y = TRUE)
 join3 = merge(x = join2, y = sp5001, by = "Date", all.x = TRUE)
 join4 = merge(x = join3, y = fundCVX, by = "Date", all.x = TRUE)
 join5 = merge(x = join4, y = priceCVX, by = "Date", all.x = TRUE) #join5 is my "working" dataset for now
+join6 = merge(x = join5, y = sonic1, by = "Date", all.x = TRUE) #join6: sonic's dataset
 
 ?ma
 
@@ -104,10 +110,10 @@ join5 = join5 %>%
 ggplot(join5) + geom_line(mapping = aes(x=Date, y = Close.y, colour = "CVX")) +
   geom_line(mapping = aes(x=Date, y = energyClosing/4, colour = "energyClosing/4")) + #/4 just so that we dont stretch the scales, for visibility
   geom_line(mapping = aes(x=Date, y = opecPrice, colour = "opecPrice")) +
-  geom_line(mapping = aes(x=Date, y = wtiPrice, colour = "wtiPrice")) +
+  geom_line(mapping = aes(x=Date, y = wtiPrice, colour = "wtiPrice"))
   
   
-  
+#write.csv(join6, file = 'spyros_dataset_export.csv')  
 # ggplot(join5) +  geom_line(mapping = aes(x=Date, y = opecPrice, colour = "opecPrice")) +
 #   geom_line(mapping = aes(x=Date, y = movAvg7, colour = "movAvg7")) +
 #   geom_line(mapping = aes(x=Date, y = movAvg30, colour = "movAvg30")) +
@@ -115,3 +121,16 @@ ggplot(join5) + geom_line(mapping = aes(x=Date, y = Close.y, colour = "CVX")) +
 
 #lag hypotheses: how long later does oil price affect the stocks prices?--------------
 
+#production by country---------
+countryProd = read.csv('by_country.csv')
+
+countryProd = countryProd %>%
+  mutate(country = ï..LOCATION)
+
+countryProdGrp = countryProd %>%
+  filter(country %in% c('WLD','USA','SAU','RUS')) #to be fixed
+
+library(tidyr)
+?dcast
+?spread
+#spread(countryProdGrp, country, )
