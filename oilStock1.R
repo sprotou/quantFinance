@@ -6,6 +6,8 @@ library(lubridate)
 library(forecast)
 library(TTR)
 library(keras)
+library(h2o)        # Awesome ML Library
+library(timetk)    
 
 opecRaw = Quandl("OPEC/ORB", api_key="G8F8fspfaYVHJzPLQP5e")
 wtiRaw = Quandl("EIA/PET_RWTC_D", api_key="G8F8fspfaYVHJzPLQP5e")
@@ -134,3 +136,36 @@ library(tidyr)
 ?dcast
 ?spread
 #spread(countryProdGrp, country, )
+
+join7 = join6 %>%
+  tk_augment_timeseries_signature()
+glimpse(join7)
+
+h2oClean <- join7 %>%
+  select_if(~ !is.Date(.)) %>%
+  mutate_if(is.ordered, ~ as.character(.) %>% as.factor)
+
+h2oClean %>% glimpse()
+
+train_tbl <- h2oClean %>% filter(year < 2017)
+valid_tbl <- h2oClean %>% filter(year == 2017)
+test_tbl  <- h2oClean %>% filter(year == 2018)
+
+h2o.init()
+
+train_h2o <- as.h2o(train_tbl)
+valid_h2o <- as.h2o(valid_tbl)
+test_h2o  <- as.h2o(test_tbl)
+
+# Set names for h2o
+y <- "energySector"
+x <- setdiff(names(train_h2o), y)
+
+automl_models_h2o <- h2o.automl(
+  x = x, 
+  y = energySector, 
+  training_frame = train_h2o, 
+  validation_frame = valid_h2o, 
+  leaderboard_frame = test_h2o, 
+  max_runtime_secs = 60, 
+  stopping_metric = "deviance")
